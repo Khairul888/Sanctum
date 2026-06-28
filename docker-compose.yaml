@@ -5,6 +5,23 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+  chromadb:
+    image: chromadb/chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ollama
+      - chromadb
 
 volumes:
   ollama_data:
+  chroma_data:
