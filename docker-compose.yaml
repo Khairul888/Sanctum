@@ -22,6 +22,14 @@ services:
       - ollama
       - chromadb
 
+  ingestion:
+    build: ./ingestion
+    ports:
+      - "8001:8001"
+    depends_on:
+     - ollama
+     - chromadb
+
 volumes:
   ollama_data:
   chroma_data:

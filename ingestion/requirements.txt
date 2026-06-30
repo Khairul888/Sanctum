@@ -1,5 +1,5 @@
 fastapi
 uvicorn
-httpx
 chromadb
+pymupdf
 python-multipart

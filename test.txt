@@ -1,0 +1,1 @@
+Sanctum is a private AI assistant. It allows users to query documents locally without sending data to the cloud. It was built by a passionate AI engineer.
