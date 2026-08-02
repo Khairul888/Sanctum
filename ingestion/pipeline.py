@@ -1,6 +1,7 @@
 import chromadb
 from loaders.txt_loader import load_txt
 from loaders.pdf_loader import load_pdf
+from loaders.image_loader import load_img
 from embedder import embed_chunk
 from chunker import chunk_text
 
@@ -12,6 +13,8 @@ def ingest_document(file_path):
         content = load_txt(file_path)
     elif file_path.endswith('.pdf'):
         content =  load_pdf(file_path)
+    elif file_path.endswith(('.jpg', '.png', 'jpeg')):
+        content =  load_img(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_path}")
     
