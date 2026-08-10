@@ -28,4 +28,3 @@ def ingest_document(file_path):
             embeddings=[embedding],
             ids=[f"{uuid.uuid4()}_chunk_{i}"]
         )
-   
