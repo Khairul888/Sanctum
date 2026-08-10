@@ -1,3 +1,4 @@
+import uuid
 import chromadb
 from loaders.txt_loader import load_txt
 from loaders.pdf_loader import load_pdf
@@ -25,6 +26,6 @@ def ingest_document(file_path):
         collection.add(
             documents=[chunk],
             embeddings=[embedding],
-            ids=[f"chunk_{i}"]
+            ids=[f"{uuid.uuid4()}_chunk_{i}"]
         )
    

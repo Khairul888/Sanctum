@@ -18,6 +18,8 @@ services:
     build: ./gateway
     ports:
       - "8080:8080"
+    volumes:
+      - ./config:/app/config
     depends_on:
       - ollama
       - chromadb
@@ -26,6 +28,8 @@ services:
     build: ./ingestion
     ports:
       - "8001:8001"
+    volumes:
+    - ./config:/app/config
     depends_on:
      - ollama
      - chromadb

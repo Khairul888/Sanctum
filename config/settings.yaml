@@ -1,0 +1,19 @@
+ollama:
+  host: "http://ollama:11434"
+  model: "llama3.2"
+  embedding_model: "nomic-embed-text"
+
+chunking:
+  chunk_size: 500
+  overlap: 50
+
+retrieval:
+  n_results: 3
+
+chromadb:
+  host: "chromadb"
+  port: 8000
+  collection: "documents"
+
+auth:
+  api_key: ${API_KEY}

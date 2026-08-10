@@ -3,3 +3,4 @@ uvicorn
 chromadb
 pymupdf
 python-multipart
+pyyaml
