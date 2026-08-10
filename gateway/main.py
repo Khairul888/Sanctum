@@ -1,10 +1,14 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends
 import httpx
 import chromadb
 from pydantic import BaseModel
 from config.config import settings
+from middleware.auth import verify_api_key
+from middleware.audit_log import audit_log_middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 app = FastAPI()
+app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
 
 client = chromadb.HttpClient(host="chromadb", port=8000)
 collection = client.get_or_create_collection("documents")
@@ -44,11 +48,11 @@ def query_ollama(query: str):
     return {"answer": response.json()["response"]}
 
 @app.post("/query")
-def run_query(query: QueryRequest):
+def run_query(query: QueryRequest, api_key: str = Depends(verify_api_key)):
     return query_ollama(query.prompt)
 
 @app.post("/ingest")
-async def ingest(file: UploadFile = File(...)):
+async def ingest(file: UploadFile = File(...), api_key: str = Depends(verify_api_key)):
     content = await file.read()
     files = {"file": (file.filename, content, file.content_type)}
     response = httpx.post(
