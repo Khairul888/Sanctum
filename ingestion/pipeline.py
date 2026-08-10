@@ -18,7 +18,7 @@ def ingest_document(file_path):
     elif file_path.endswith(('.jpg', '.png', 'jpeg')):
         content = load_img(file_path)
     else:
-        raise ValueError(f"Unsupported file type: {file_path}")   
+        raise ValueError(f"Unsupported file type: {file_path}")
     chunks = chunk_text(content)
 
     for i, chunk in enumerate(chunks):
@@ -28,5 +28,4 @@ def ingest_document(file_path):
             embeddings=[embedding],
             ids=[f"{uuid.uuid4()}_chunk_{i}"]
         )
-        
    
