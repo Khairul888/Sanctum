@@ -1,5 +1,6 @@
 import fitz
 
+
 def load_img(file_path):
     with fitz.open(file_path) as file:
         pdf_bytes = file.convert_to_pdf()

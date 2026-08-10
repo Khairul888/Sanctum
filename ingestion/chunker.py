@@ -1,6 +1,8 @@
 from config.config import settings
 
-def chunk_text(text, chunk_size= settings["chunking"]["chunk_size"], overlap= settings["chunking"]["overlap"]):
+
+def chunk_text(text, chunk_size=settings["chunking"]
+               ["chunk_size"], overlap=settings["chunking"]["overlap"]):
     chunks = []
     start = 0
     text_length = len(text)
@@ -12,4 +14,3 @@ def chunk_text(text, chunk_size= settings["chunking"]["chunk_size"], overlap= se
         start += chunk_size - overlap
 
     return chunks
-        
