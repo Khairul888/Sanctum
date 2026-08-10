@@ -1,0 +1,41 @@
+name: Sanctum CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Lint gateway
+        run: flake8 gateway/ --max-line-length=120 --ignore=E501
+
+      - name: Lint ingestion
+        run: flake8 ingestion/ --max-line-length=120 --ignore=E501
+
+  build:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build gateway image
+        run: docker build ./gateway
+
+      - name: Build ingestion image
+        run: docker build ./ingestion
