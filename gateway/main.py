@@ -6,9 +6,12 @@ from config.config import settings
 from middleware.auth import verify_api_key
 from middleware.audit_log import audit_log_middleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from memory import store
 
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
+
+store.init_db()
 
 client = chromadb.HttpClient(host="chromadb", port=8000)
 collection = client.get_or_create_collection("documents")
@@ -23,7 +26,41 @@ def home():
     return {"message": "Welcome to the Sanctum Gateway!"}
 
 
-def query_ollama(query: str):
+def generate_with_history(query: str, extra_context: str = None):
+    turns = store.get_recent_turns(settings["memory"]["max_short_term_turns"])
+    history = store.format_history(turns)
+
+    prompt_parts = []
+    if history:
+        prompt_parts.append(f"Conversation so far:\n{history}")
+    if extra_context:
+        prompt_parts.append(
+            f"Use the following context to answer the question.\n\nContext:\n{extra_context}"
+        )
+    prompt_parts.append(f"Question: {query}")
+
+    response = httpx.post(
+        settings["ollama"]["host"] + "/api/generate",
+        json={
+            "model": settings["ollama"]["model"],
+            "prompt": "\n\n".join(prompt_parts),
+            "stream": False,
+        },
+        timeout=120.0
+    )
+    answer = response.json()["response"]
+
+    store.add_turn("user", query)
+    store.add_turn("assistant", answer)
+
+    return answer
+
+
+def query_plain(query: str):
+    return {"answer": generate_with_history(query)}
+
+
+def query_rag(query: str):
     embedded_query = httpx.post(
         settings["ollama"]["host"] + "/api/embeddings",
         json={"model": settings["ollama"]["embedding_model"], "prompt": query},
@@ -39,21 +76,23 @@ def query_ollama(query: str):
     chunks = results["documents"][0]
     context = "\n".join(chunks)
 
-    response = httpx.post(
-        settings["ollama"]["host"] + "/api/generate",
-        json={
-            "model": settings["ollama"]["model"],
-            "prompt": f"Use the following context to answer the question.\n\nContext:\n{context}\n\nQuestion: {query}",
-            "stream": False,
-        },
-        timeout=120.0
-    )
-    return {"answer": response.json()["response"]}
+    return {"answer": generate_with_history(query, extra_context=context)}
 
 
 @app.post("/query")
 def run_query(query: QueryRequest, api_key: str = Depends(verify_api_key)):
-    return query_ollama(query.prompt)
+    return query_plain(query.prompt)
+
+
+@app.post("/query/rag")
+def run_query_rag(query: QueryRequest, api_key: str = Depends(verify_api_key)):
+    return query_rag(query.prompt)
+
+
+@app.post("/memory/reset")
+def reset_memory(api_key: str = Depends(verify_api_key)):
+    store.reset_conversation()
+    return {"message": "Conversation memory has been reset"}
 
 
 @app.post("/ingest")

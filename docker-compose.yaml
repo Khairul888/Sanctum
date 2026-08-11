@@ -20,6 +20,7 @@ services:
       - "8080:8080"
     volumes:
       - ./config:/app/config
+      - gateway_memory:/app/data
     env_file:
       - .env
     depends_on:
@@ -41,3 +42,4 @@ services:
 volumes:
   ollama_data:
   chroma_data:
+  gateway_memory:

@@ -10,6 +10,10 @@ chunking:
 retrieval:
   n_results: 3
 
+memory:
+  db_path: "/app/data/memory.db"
+  max_short_term_turns: 10
+
 chromadb:
   host: "chromadb"
   port: 8000
