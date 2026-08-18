@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Depends
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import chromadb
 from pydantic import BaseModel
@@ -10,6 +11,12 @@ from memory import store
 
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 store.init_db()
 
