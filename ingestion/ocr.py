@@ -1,14 +1,11 @@
 from paddleocr import PaddleOCR
 
-_ocr = PaddleOCR(use_angle_cls=True, lang="en")
+_ocr = PaddleOCR(use_angle_cls=True, lang="en", enable_mkldnn=False)
 
 
 def run_ocr(image_path: str) -> str:
-    result = _ocr.ocr(image_path, cls=True)
+    result = _ocr.ocr(image_path)
     lines = []
     for page in result:
-        if not page:
-            continue
-        for _, (text, _confidence) in page:
-            lines.append(text)
+        lines.extend(page.get("rec_texts", []))
     return "\n".join(lines)

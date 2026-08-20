@@ -1,9 +1,10 @@
-import { BookOpen, Globe } from "lucide-react";
+import { BookOpen, Globe, Paperclip } from "lucide-react";
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
   toolsUsed?: string[];
+  attachmentName?: string;
 }
 
 const TOOL_LABELS: Record<string, { label: string; icon: typeof BookOpen }> = {
@@ -11,10 +12,16 @@ const TOOL_LABELS: Record<string, { label: string; icon: typeof BookOpen }> = {
   web_search: { label: "Web Search", icon: Globe },
 };
 
-export function MessageBubble({ role, content, toolsUsed }: MessageBubbleProps) {
+export function MessageBubble({ role, content, toolsUsed, attachmentName }: MessageBubbleProps) {
   const isUser = role === "user";
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+      {isUser && attachmentName && (
+        <span className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
+          <Paperclip className="h-3 w-3" />
+          {attachmentName}
+        </span>
+      )}
       {!!toolsUsed?.length && (
         <div className="mb-1 flex gap-1.5">
           {toolsUsed.map((tool, i) => {

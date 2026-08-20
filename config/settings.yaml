@@ -2,6 +2,7 @@ ollama:
   host: "http://ollama:11434"
   model: "llama3.2"
   embedding_model: "nomic-embed-text"
+  vision_model: "qwen3-vl:4b"
 
 chunking:
   chunk_size: 500

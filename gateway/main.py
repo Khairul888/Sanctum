@@ -1,4 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, Depends
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from pydantic import BaseModel
@@ -26,13 +27,21 @@ SYSTEM_PROMPT = (
     "web_search, which searches the public internet for current information. "
     "Only call a tool when you need information you don't already have — use "
     "rag_search for questions about the user's own documents, and web_search "
-    "for current or real-time facts. Do not call a tool for greetings, "
-    "opinions, or general knowledge you already know."
+    "for current or real-time facts. If the user's current message includes "
+    "attached file content, it is already provided directly in their message — "
+    "use it as-is and do not call rag_search to look for it. Do not call a "
+    "tool for greetings, opinions, or general knowledge you already know."
 )
+
+
+class Attachment(BaseModel):
+    filename: str
+    text: str
 
 
 class QueryRequest(BaseModel):
     prompt: str
+    attachment: Optional[Attachment] = None
 
 
 @app.get("/")
@@ -60,9 +69,24 @@ def _is_degenerate(content: str) -> bool:
     return not content or content.strip() in ("{}", "{ }")
 
 
-def generate_with_tools(query: str):
+def _build_user_content(query: str, attachment: Optional[Attachment]) -> str:
+    if not attachment:
+        return query
+    return (
+        f'The user has attached a file named "{attachment.filename}". Its extracted '
+        f"contents are included below for direct reference — this is not something "
+        f"you need to search for.\n\n"
+        f"--- BEGIN ATTACHMENT: {attachment.filename} ---\n"
+        f"{attachment.text}\n"
+        f"--- END ATTACHMENT ---\n\n"
+        f"{query}"
+    )
+
+
+def generate_with_tools(query: str, attachment: Optional[Attachment] = None):
     turns = store.get_recent_turns(settings["memory"]["max_short_term_turns"])
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *turns, {"role": "user", "content": query}]
+    user_content = _build_user_content(query, attachment)
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *turns, {"role": "user", "content": user_content}]
 
     tools_used = []
     max_rounds = settings["agent"]["max_tool_rounds"]
@@ -89,7 +113,7 @@ def generate_with_tools(query: str):
     if _is_degenerate(answer):
         answer = _chat(messages, with_tools=False)["content"]
 
-    store.add_turn("user", query)
+    store.add_turn("user", user_content)
     store.add_turn("assistant", answer)
 
     return {"answer": answer, "tools_used": tools_used}
@@ -97,7 +121,20 @@ def generate_with_tools(query: str):
 
 @app.post("/query/agent")
 def run_query_agent(query: QueryRequest, api_key: str = Depends(verify_api_key)):
-    return generate_with_tools(query.prompt)
+    return generate_with_tools(query.prompt, query.attachment)
+
+
+@app.post("/attach")
+async def attach(file: UploadFile = File(...), api_key: str = Depends(verify_api_key)):
+    content = await file.read()
+    files = {"file": (file.filename, content, file.content_type)}
+    try:
+        response = httpx.post("http://ingestion:8001/extract", files=files, timeout=120.0)
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"ingestion service unreachable: {e}")
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json().get("detail", "extraction failed"))
+    return response.json()
 
 
 @app.post("/memory/reset")

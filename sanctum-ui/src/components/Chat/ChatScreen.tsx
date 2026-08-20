@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { RotateCcw, Cpu } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
-import { query, resetMemory } from "@/api/sanctum";
+import { query, resetMemory, type Attachment } from "@/api/sanctum";
 import { useSettingsStore } from "@/store";
 
 interface Message {
@@ -11,6 +11,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   toolsUsed?: string[];
+  attachmentName?: string;
 }
 
 export function ChatScreen() {
@@ -19,7 +20,8 @@ export function ChatScreen() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sendMutation = useMutation({
-    mutationFn: (prompt: string) => query(prompt, { gatewayUrl, apiKey }),
+    mutationFn: ({ prompt, attachment }: { prompt: string; attachment?: Attachment }) =>
+      query(prompt, { gatewayUrl, apiKey }, attachment),
   });
 
   const clearMutation = useMutation({
@@ -31,23 +33,31 @@ export function ChatScreen() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sendMutation.isPending]);
 
-  function handleSend(content: string) {
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content };
+  function handleSend(content: string, attachment?: Attachment) {
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content,
+      attachmentName: attachment?.filename,
+    };
     setMessages((prev) => [...prev, userMessage]);
 
-    sendMutation.mutate(content, {
-      onSuccess: (data) => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: data.answer,
-            toolsUsed: data.tools_used,
-          },
-        ]);
+    sendMutation.mutate(
+      { prompt: content, attachment },
+      {
+        onSuccess: (data) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: data.answer,
+              toolsUsed: data.tools_used,
+            },
+          ]);
+        },
       },
-    });
+    );
   }
 
   return (
@@ -80,6 +90,7 @@ export function ChatScreen() {
               role={m.role}
               content={m.content}
               toolsUsed={m.toolsUsed}
+              attachmentName={m.attachmentName}
             />
           ))}
           {sendMutation.isPending && (
