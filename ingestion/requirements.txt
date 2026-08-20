@@ -4,3 +4,5 @@ chromadb
 pymupdf
 python-multipart
 pyyaml
+paddlepaddle
+paddleocr
