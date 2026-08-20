@@ -43,11 +43,3 @@ def get_recent_turns(limit: int):
         )
         rows = cursor.fetchall()
     return [{"role": role, "content": content} for role, content in reversed(rows)]
-
-
-def format_history(turns):
-    lines = []
-    for turn in turns:
-        speaker = "User" if turn["role"] == "user" else "Assistant"
-        lines.append(f"{speaker}: {turn['content']}")
-    return "\n".join(lines)

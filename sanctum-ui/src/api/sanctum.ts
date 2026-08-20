@@ -13,10 +13,10 @@ function client({ gatewayUrl, apiKey }: SanctumConfig) {
 }
 
 export async function query(prompt: string, config: SanctumConfig) {
-  const { data } = await client(config).post<{ answer: string }>(
-    "/query/rag",
-    { prompt },
-  );
+  const { data } = await client(config).post<{
+    answer: string;
+    tools_used: string[];
+  }>("/query/agent", { prompt });
   return data;
 }
 

@@ -10,6 +10,7 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolsUsed?: string[];
 }
 
 export function ChatScreen() {
@@ -38,7 +39,12 @@ export function ChatScreen() {
       onSuccess: (data) => {
         setMessages((prev) => [
           ...prev,
-          { id: crypto.randomUUID(), role: "assistant", content: data.answer },
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: data.answer,
+            toolsUsed: data.tools_used,
+          },
         ]);
       },
     });
@@ -69,7 +75,12 @@ export function ChatScreen() {
             </p>
           )}
           {messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} />
+            <MessageBubble
+              key={m.id}
+              role={m.role}
+              content={m.content}
+              toolsUsed={m.toolsUsed}
+            />
           ))}
           {sendMutation.isPending && (
             <MessageBubble role="assistant" content="Thinking…" />

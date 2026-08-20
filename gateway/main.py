@@ -1,13 +1,13 @@
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
-import chromadb
 from pydantic import BaseModel
 from config.config import settings
 from middleware.auth import verify_api_key
 from middleware.audit_log import audit_log_middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from memory import store
+from tools import TOOL_DEFINITIONS, TOOL_DISPATCH
 
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
@@ -20,8 +20,15 @@ app.add_middleware(
 
 store.init_db()
 
-client = chromadb.HttpClient(host="chromadb", port=8000)
-collection = client.get_or_create_collection("documents")
+SYSTEM_PROMPT = (
+    "You are Sanctum, a local-first assistant. You have access to two tools: "
+    "rag_search, which searches the user's own ingested documents, and "
+    "web_search, which searches the public internet for current information. "
+    "Only call a tool when you need information you don't already have — use "
+    "rag_search for questions about the user's own documents, and web_search "
+    "for current or real-time facts. Do not call a tool for greetings, "
+    "opinions, or general knowledge you already know."
+)
 
 
 class QueryRequest(BaseModel):
@@ -33,67 +40,64 @@ def home():
     return {"message": "Welcome to the Sanctum Gateway!"}
 
 
-def generate_with_history(query: str, extra_context: str = None):
-    turns = store.get_recent_turns(settings["memory"]["max_short_term_turns"])
-    history = store.format_history(turns)
-
-    prompt_parts = []
-    if history:
-        prompt_parts.append(f"Conversation so far:\n{history}")
-    if extra_context:
-        prompt_parts.append(
-            f"Use the following context to answer the question.\n\nContext:\n{extra_context}"
-        )
-    prompt_parts.append(f"Question: {query}")
-
+def _chat(messages, with_tools: bool):
+    payload = {
+        "model": settings["ollama"]["model"],
+        "messages": messages,
+        "stream": False,
+    }
+    if with_tools:
+        payload["tools"] = TOOL_DEFINITIONS
     response = httpx.post(
-        settings["ollama"]["host"] + "/api/generate",
-        json={
-            "model": settings["ollama"]["model"],
-            "prompt": "\n\n".join(prompt_parts),
-            "stream": False,
-        },
-        timeout=120.0
+        settings["ollama"]["host"] + "/api/chat", json=payload, timeout=120.0
     )
-    answer = response.json()["response"]
+    return response.json()["message"]
+
+
+def _is_degenerate(content: str) -> bool:
+    # llama3.2 sometimes emits an empty/near-empty JSON stub instead of real
+    # text when tools are attached but it decides not to call one.
+    return not content or content.strip() in ("{}", "{ }")
+
+
+def generate_with_tools(query: str):
+    turns = store.get_recent_turns(settings["memory"]["max_short_term_turns"])
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}, *turns, {"role": "user", "content": query}]
+
+    tools_used = []
+    max_rounds = settings["agent"]["max_tool_rounds"]
+    answer = None
+
+    for _ in range(max_rounds):
+        message = _chat(messages, with_tools=True)
+        tool_calls = message.get("tool_calls")
+
+        if not tool_calls:
+            answer = message["content"]
+            break
+
+        messages.append(message)
+        for call in tool_calls:
+            name = call["function"]["name"]
+            arguments = call["function"]["arguments"]
+            result = TOOL_DISPATCH[name](**arguments)
+            tools_used.append(name)
+            messages.append({"role": "tool", "content": result})
+    else:
+        answer = _chat(messages, with_tools=False)["content"]
+
+    if _is_degenerate(answer):
+        answer = _chat(messages, with_tools=False)["content"]
 
     store.add_turn("user", query)
     store.add_turn("assistant", answer)
 
-    return answer
+    return {"answer": answer, "tools_used": tools_used}
 
 
-def query_plain(query: str):
-    return {"answer": generate_with_history(query)}
-
-
-def query_rag(query: str):
-    embedded_query = httpx.post(
-        settings["ollama"]["host"] + "/api/embeddings",
-        json={"model": settings["ollama"]["embedding_model"], "prompt": query},
-        timeout=120.0
-    )
-    query_embeddings = embedded_query.json()["embedding"]
-
-    results = collection.query(
-        query_embeddings=[query_embeddings],
-        n_results=settings["retrieval"]["n_results"]
-    )
-
-    chunks = results["documents"][0]
-    context = "\n".join(chunks)
-
-    return {"answer": generate_with_history(query, extra_context=context)}
-
-
-@app.post("/query")
-def run_query(query: QueryRequest, api_key: str = Depends(verify_api_key)):
-    return query_plain(query.prompt)
-
-
-@app.post("/query/rag")
-def run_query_rag(query: QueryRequest, api_key: str = Depends(verify_api_key)):
-    return query_rag(query.prompt)
+@app.post("/query/agent")
+def run_query_agent(query: QueryRequest, api_key: str = Depends(verify_api_key)):
+    return generate_with_tools(query.prompt)
 
 
 @app.post("/memory/reset")
