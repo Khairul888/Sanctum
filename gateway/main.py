@@ -1,6 +1,8 @@
+import os
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import httpx
 from pydantic import BaseModel
 from config.config import settings
@@ -42,17 +44,24 @@ BASE_SYSTEM_PROMPT = (
     "saves, and drafts cover letters for the top matches in one call and "
     "returns the real results, which you must relay back close to verbatim "
     "(do not summarize from memory, do not invent additional jobs or "
-    "companies not present in its output); list_applications shows every job "
-    "the user has saved/applied to with its status. Only call a tool when you "
-    "need information you don't already have.\n\n"
+    "companies not present in its output); prepare_application(application_id) "
+    "opens a saved application's job page in a real browser and fills in "
+    "what it confidently can from the resume profile — use this only when "
+    "the user specifically asks to fill in / start / work on an application "
+    "form, not as part of the default find-jobs flow; list_applications "
+    "shows every job the user has saved/applied to with its status. Only "
+    "call a tool when you need information you don't already have.\n\n"
     "IMPORTANT — you cannot actually submit job applications yet (that "
-    "capability doesn't exist), and apply_to_top_matches never submits "
-    "anything on its own. Never claim you submitted or applied to a job on "
-    "the user's behalf — only that you found/saved/drafted a cover letter for "
-    "it, and that they still need to submit it manually. Whenever the user "
-    "asks what they've applied to, saved, or the status of their "
-    "applications, use list_applications rather than relying on conversation "
-    "memory.\n\n"
+    "capability doesn't exist). Neither apply_to_top_matches nor "
+    "prepare_application ever submits anything — prepare_application only "
+    "fills the form and saves a screenshot for review, and deliberately "
+    "never fills resume/file uploads, consent checkboxes, or demographic "
+    "questions, which the user must handle themselves. Never claim you "
+    "submitted or applied to a job on the user's behalf — only that you "
+    "found/saved/drafted/filled it, and that they still need to finish and "
+    "submit it manually. Whenever the user asks what they've applied to, "
+    "saved, or the status of their applications, use list_applications "
+    "rather than relying on conversation memory.\n\n"
     "If the user's current message includes attached file content, it is "
     "already provided directly in their message — use it as-is and do not "
     "call rag_search to look for it. Do not call a tool for greetings, "
@@ -249,3 +258,16 @@ def get_profile(api_key: str = Depends(verify_api_key)):
 @app.put("/profile")
 def update_profile(profile: dict, api_key: str = Depends(verify_api_key)):
     return profile_store.save_profile(profile)
+
+
+@app.get("/applications")
+def list_applications_route(api_key: str = Depends(verify_api_key)):
+    return applications_store.list_applications()
+
+
+@app.get("/applications/{application_id}/screenshot")
+def get_application_screenshot(application_id: int, api_key: str = Depends(verify_api_key)):
+    path = f"/app/data/screenshots/{application_id}.png"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No screenshot saved for this application")
+    return FileResponse(path, media_type="image/png")

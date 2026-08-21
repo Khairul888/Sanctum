@@ -2,6 +2,7 @@ from .rag import rag_search
 from .web_search import web_search
 from .job_search import job_search
 from .applications import save_job, draft_cover_letter, list_applications, apply_to_top_matches
+from .apply_form import prepare_application
 
 TOOL_DEFINITIONS = [
     {
@@ -157,6 +158,33 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "prepare_application",
+            "description": (
+                "Open a saved application's job page in a real browser and "
+                "fill out as much of the form as can be confidently "
+                "determined from the user's resume profile and cover letter "
+                "— name, contact info, work-authorization-style questions, "
+                "etc. Drafts a cover letter first if the application doesn't "
+                "have one yet. Never fills resume/file uploads, consent "
+                "checkboxes, or demographic/EEOC questions — those are left "
+                "for the user. Saves a screenshot for review. This NEVER "
+                "submits the application; submission is always manual."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "application_id": {
+                        "type": "integer",
+                        "description": "The id of the saved application, from save_job's result.",
+                    },
+                },
+                "required": ["application_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_applications",
             "description": (
                 "List every job the user has saved or applied to, with its "
@@ -176,5 +204,6 @@ TOOL_DISPATCH = {
     "save_job": save_job,
     "draft_cover_letter": draft_cover_letter,
     "apply_to_top_matches": apply_to_top_matches,
+    "prepare_application": prepare_application,
     "list_applications": list_applications,
 }

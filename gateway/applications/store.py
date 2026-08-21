@@ -7,7 +7,7 @@ DB_PATH = os.path.join(os.path.dirname(settings["memory"]["db_path"]), "applicat
 
 COLUMNS = [
     "id", "title", "company", "location", "url", "salary",
-    "status", "cover_letter", "created_at", "updated_at",
+    "status", "cover_letter", "filled_fields", "created_at", "updated_at",
 ]
 
 
@@ -28,6 +28,10 @@ def init_db():
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        try:
+            conn.execute("ALTER TABLE job_applications ADD COLUMN filled_fields TEXT")
+        except sqlite3.OperationalError:
+            pass  # already added by a previous run
         conn.commit()
 
 

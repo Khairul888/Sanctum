@@ -40,6 +40,8 @@ def save_job(index) -> str:
 def _format_profile(profile: dict) -> str:
     lines = [
         f"Name: {profile.get('name') or 'unknown'}",
+        f"Email: {profile.get('email') or 'unknown'}",
+        f"Phone: {profile.get('phone') or 'unknown'}",
         f"Location: {profile.get('location') or 'unknown'}",
         f"Summary: {profile.get('summary') or 'none'}",
         f"Skills: {', '.join(profile.get('skills') or []) or 'none listed'}",
