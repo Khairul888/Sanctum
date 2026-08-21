@@ -15,6 +15,11 @@ search:
   n_results: 3
   timeout_seconds: 10
 
+jobs:
+  country: "sg"
+  n_results: 10
+  timeout_seconds: 10
+
 agent:
   max_tool_rounds: 3
 

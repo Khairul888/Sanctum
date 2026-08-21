@@ -9,3 +9,6 @@ settings["auth"] = {
 }
 
 settings["search"]["tavily_api_key"] = os.environ.get("TAVILY_API_KEY")
+
+settings["jobs"]["adzuna_app_id"] = os.environ.get("ADZUNA_APP_ID")
+settings["jobs"]["adzuna_app_key"] = os.environ.get("ADZUNA_APP_KEY")
