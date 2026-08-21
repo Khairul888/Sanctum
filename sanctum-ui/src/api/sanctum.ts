@@ -52,6 +52,51 @@ export async function ingest(file: File, config: SanctumConfig) {
   return data;
 }
 
+export interface WorkHistoryEntry {
+  company: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+}
+
+export interface EducationEntry {
+  institution: string;
+  degree: string;
+  field: string;
+  year: string;
+}
+
+export interface Profile {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  summary: string;
+  skills: string[];
+  work_history: WorkHistoryEntry[];
+  education: EducationEntry[];
+}
+
+export async function uploadResume(file: File, config: SanctumConfig) {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await client(config).post<Profile>("/profile/resume", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function getProfile(config: SanctumConfig) {
+  const { data } = await client(config).get<Profile>("/profile");
+  return data;
+}
+
+export async function updateProfile(profile: Profile, config: SanctumConfig) {
+  const { data } = await client(config).put<Profile>("/profile", profile);
+  return data;
+}
+
 export async function getStatus(config: SanctumConfig) {
   const { data } = await client(config).get("/health/detailed");
   return data;

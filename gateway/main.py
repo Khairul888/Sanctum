@@ -9,6 +9,8 @@ from middleware.audit_log import audit_log_middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from memory import store
 from tools import TOOL_DEFINITIONS, TOOL_DISPATCH
+from user_profile import store as profile_store
+from user_profile.extractor import extract_profile
 
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
@@ -20,6 +22,7 @@ app.add_middleware(
 )
 
 store.init_db()
+profile_store.init_db()
 
 SYSTEM_PROMPT = (
     "You are Sanctum, a local-first assistant. You have access to two tools: "
@@ -154,3 +157,41 @@ async def ingest(file: UploadFile = File(...),
         timeout=120.0
     )
     return response.json()
+
+
+@app.post("/profile/resume")
+async def upload_resume(file: UploadFile = File(...), api_key: str = Depends(verify_api_key)):
+    content = await file.read()
+
+    files = {"file": (file.filename, content, file.content_type)}
+    try:
+        extract_response = httpx.post("http://ingestion:8001/extract", files=files, timeout=120.0)
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"ingestion service unreachable: {e}")
+    if extract_response.status_code != 200:
+        raise HTTPException(
+            status_code=extract_response.status_code,
+            detail=extract_response.json().get("detail", "extraction failed"),
+        )
+    resume_text = extract_response.json()["text"]
+
+    profile = extract_profile(resume_text)
+    profile_store.save_profile(profile, source_filename=file.filename)
+
+    files = {"file": (file.filename, content, file.content_type)}
+    httpx.post("http://ingestion:8001/ingest", files=files, timeout=120.0)
+
+    return profile
+
+
+@app.get("/profile")
+def get_profile(api_key: str = Depends(verify_api_key)):
+    profile = profile_store.get_profile()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="No profile has been created yet")
+    return profile
+
+
+@app.put("/profile")
+def update_profile(profile: dict, api_key: str = Depends(verify_api_key)):
+    return profile_store.save_profile(profile)

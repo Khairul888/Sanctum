@@ -12,11 +12,11 @@ export function FileUpload({ onFilesSelected }: FileUploadProps) {
         if (e.dataTransfer.files.length) onFilesSelected(e.dataTransfer.files);
       }}
     >
-      <p>Drag and drop PDF, TXT, JPG, or PNG files here</p>
+      <p>Drag and drop PDF, DOCX, TXT, JPG, or PNG files here</p>
       <input
         type="file"
         multiple
-        accept=".pdf,.txt,.jpg,.jpeg,.png"
+        accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"
         className="mt-4 text-xs"
         onChange={(e) => {
           if (e.target.files?.length) onFilesSelected(e.target.files);

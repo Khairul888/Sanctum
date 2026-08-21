@@ -6,3 +6,4 @@ python-multipart
 pyyaml
 paddlepaddle
 paddleocr
+python-docx

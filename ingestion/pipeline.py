@@ -2,6 +2,7 @@ import uuid
 import chromadb
 from loaders.txt_loader import load_txt
 from loaders.pdf_loader import load_pdf
+from loaders.docx_loader import load_docx
 from ocr import run_ocr
 from vision import describe_image
 from embedder import embed_chunk
@@ -16,6 +17,8 @@ def extract_text(file_path: str) -> str:
         return load_txt(file_path)
     elif file_path.endswith('.pdf'):
         return load_pdf(file_path)
+    elif file_path.endswith('.docx'):
+        return load_docx(file_path)
     elif file_path.endswith(('.jpg', '.jpeg', '.png')):
         ocr_text = run_ocr(file_path)
         caption = describe_image(file_path)
