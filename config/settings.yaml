@@ -21,7 +21,7 @@ jobs:
   timeout_seconds: 10
 
 agent:
-  max_tool_rounds: 3
+  max_tool_rounds: 8
 
 memory:
   db_path: "/app/data/memory.db"

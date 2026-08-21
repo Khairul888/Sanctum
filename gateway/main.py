@@ -11,6 +11,7 @@ from memory import store
 from tools import TOOL_DEFINITIONS, TOOL_DISPATCH
 from user_profile import store as profile_store
 from user_profile.extractor import extract_profile
+from applications import store as applications_store
 
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=audit_log_middleware)
@@ -23,20 +24,39 @@ app.add_middleware(
 
 store.init_db()
 profile_store.init_db()
+applications_store.init_db()
 
 BASE_SYSTEM_PROMPT = (
-    "You are Sanctum, a local-first assistant. You have access to three tools: "
-    "rag_search, which searches the user's own ingested documents; web_search, "
-    "which searches the public internet for current information; and "
-    "job_search, which searches current job listings by title/keywords and "
-    "optional location. Only call a tool when you need information you don't "
-    "already have — use rag_search for questions about the user's own "
-    "documents, web_search for current or real-time facts, and job_search "
-    "specifically when the user asks to find jobs, openings, or vacancies. If "
-    "the user's current message includes attached file content, it is already "
-    "provided directly in their message — use it as-is and do not call "
-    "rag_search to look for it. Do not call a tool for greetings, opinions, or "
-    "general knowledge you already know."
+    "You are Sanctum, a local-first assistant. Your tools: rag_search searches "
+    "the user's own ingested documents; web_search searches the public "
+    "internet for current information; job_search finds current job listings "
+    "by title/keywords and optional location, returning listings numbered "
+    "[1], [2], etc; save_job(index) records the job at that [N] position from "
+    "the most recent job_search results into the user's tracked applications "
+    "and returns its application id — never retype a job's title/company/url "
+    "yourself, always reference it by its search result index; "
+    "draft_cover_letter writes and saves a tailored cover letter for a saved "
+    "application id, using the user's resume profile; apply_to_top_matches is "
+    "the preferred tool whenever the user asks you to find/apply to jobs "
+    "matching their resume in one request — it deterministically searches, "
+    "saves, and drafts cover letters for the top matches in one call and "
+    "returns the real results, which you must relay back close to verbatim "
+    "(do not summarize from memory, do not invent additional jobs or "
+    "companies not present in its output); list_applications shows every job "
+    "the user has saved/applied to with its status. Only call a tool when you "
+    "need information you don't already have.\n\n"
+    "IMPORTANT — you cannot actually submit job applications yet (that "
+    "capability doesn't exist), and apply_to_top_matches never submits "
+    "anything on its own. Never claim you submitted or applied to a job on "
+    "the user's behalf — only that you found/saved/drafted a cover letter for "
+    "it, and that they still need to submit it manually. Whenever the user "
+    "asks what they've applied to, saved, or the status of their "
+    "applications, use list_applications rather than relying on conversation "
+    "memory.\n\n"
+    "If the user's current message includes attached file content, it is "
+    "already provided directly in their message — use it as-is and do not "
+    "call rag_search to look for it. Do not call a tool for greetings, "
+    "opinions, or general knowledge you already know."
 )
 
 
@@ -58,9 +78,11 @@ def _build_system_prompt() -> str:
         f"Location: {profile.get('location') or 'unknown'}\n"
         f"Skills: {skills}\n"
         f"Recent roles: {recent_titles}\n"
-        "When the user asks to find jobs matching their resume/skills, call "
-        "job_search directly using these skills/titles as the query and their "
-        "location as the location — do not call rag_search first."
+        "If the user just wants to browse/search jobs (not save or apply), "
+        "call job_search directly using these skills/titles as the query and "
+        "their location as the location. If they ask you to find/apply to "
+        "jobs matching their resume, use apply_to_top_matches instead (see "
+        "above) — it already reads this same profile itself."
     )
     return BASE_SYSTEM_PROMPT + profile_context
 
