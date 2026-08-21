@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChatScreen } from "@/components/Chat/ChatScreen";
 import { DocumentsScreen } from "@/components/Documents/DocumentsScreen";
+import { ResumeScreen } from "@/components/Resume/ResumeScreen";
 import { SettingsScreen } from "@/components/Settings/SettingsScreen";
 import { StatusScreen } from "@/components/Status/StatusScreen";
 import { useSettingsStore } from "@/store";
@@ -9,6 +10,7 @@ import "./App.css";
 const SCREENS = {
   chat: { label: "Chat", component: ChatScreen },
   documents: { label: "Documents", component: DocumentsScreen },
+  resume: { label: "Resume", component: ResumeScreen },
   settings: { label: "Settings", component: SettingsScreen },
   status: { label: "Status", component: StatusScreen },
 } as const;
