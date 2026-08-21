@@ -46,6 +46,11 @@ services:
      - ollama
      - chromadb
 
+  browser:
+    build: ./browser
+    ports:
+      - "8002:8002"
+
 volumes:
   ollama_data:
   chroma_data:
